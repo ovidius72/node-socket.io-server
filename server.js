@@ -1,9 +1,17 @@
 const express = require("express");
 const app = express();
 const http = require("http").Server(app);
-const io = require("socket.io")(http);
 const bodyParser = require("body-parser");
 const os = require('os');
+const io = require('socket.io');
+
+const ioWeb = io(http, {
+  path: '/web',
+});
+
+const ioKeystroke = io(http, {
+  path: '/keystroke',
+});
 
 let currentUserId = 'u001';
 
@@ -12,10 +20,10 @@ let currentUserId = 'u001';
 // Not used.
 const getUserInfo = () => {
   const u  = os.userInfo({encoding: 'utf8'});
-  console.log("u", u);
+  console.log("user info:", u);
 }
 
-io.on("connection", socket => {
+ioWeb.on("connection", socket => {
   console.log("socket connected", socket.connected);
   getUserInfo();
 
@@ -33,6 +41,24 @@ io.on("connection", socket => {
       sendMessage({event,data});
     }
   };
+});
+
+ioKeystroke.on('connection', kSocket => {
+  console.log('keystroke socket connected');
+
+  kSocket.on('disconnect', () => {
+    console.log('keystroke socket disconnected');
+  })
+
+  kSocket.on("connected", () => {
+    console.log('keystroke socket connected');
+  });
+
+  kSocket.onevent = msg => {
+    console.log('received keystroke message');
+    console.log(msg);
+  }
+
 });
 
 app.use(bodyParser.urlencoded({ extended: false }));
@@ -89,7 +115,7 @@ const openSocket = () => {};
 
 // CLOSE THE SOCKET
 const closeSocket = () => {
-  io.close();
+  ioWeb.close();
 };
 
 // Prepare the message format and send it socket clients.
@@ -101,7 +127,7 @@ console.log("event", event);
   }
   console.log("currentUserId", currentUserId);
 
-  io.emit(event, { data: currentUserId });
+  ioWeb.emit(event, { data: currentUserId });
   if(event === 'login') {
     currentUserId = data || currentUserId;
   }
