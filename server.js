@@ -1,69 +1,95 @@
-const express = require("express");
-const app = express();
-const http = require("http").Server(app);
+const os = require("os");
 const bodyParser = require("body-parser");
-const os = require('os');
-const io = require('socket.io');
 
-const ioWeb = io(http, {
-  path: '/web',
+const WebSocket = require("ws");
+const http = require("http");
+
+const express = require("express");
+
+const app = express();
+const app2 = express();
+
+const webServer = http.createServer(app);
+const keystrokeServer = http.createServer(app2);
+let wsSender;
+
+// const io = require('socket.io');
+
+const keysWss = new WebSocket.Server({
+  server: keystrokeServer,
+  path: "/keystroke"
 });
 
-const ioKeystroke = io(http, {
-  path: '/keystroke',
+const webWss = new WebSocket.Server({
+  server: webServer,
+  path: "/web"
+  // server
 });
 
-let currentUserId = 'u001';
+// const ioWeb = io(http, {
+//   path: '/web',
+// });
 
+// const ioKeystroke = io(http, {
+//   path: '/keystroke',
+// });
+
+let currentUserId = "u001";
 
 // Get user info from the os module.
 // Not used.
 const getUserInfo = () => {
-  const u  = os.userInfo({encoding: 'utf8'});
+  const u = os.userInfo({ encoding: "utf8" });
   console.log("user info:", u);
-}
+};
 
-ioWeb.on("connection", socket => {
-  console.log("socket connected", socket.connected);
+webWss.on("connection", ws => {
+  // ioWeb.on("connection", socket => {
+  console.log("web socket server onconnection");
+  wsSender = ws;
   getUserInfo();
 
-  socket.on("disconnect", () => {
-    console.log("socket disconnected", socket.connected);
+  ws.on("disconnect", () => {
+    console.log("web socket disconnected");
   });
 
-  socket.onevent = function(msg) {
+  ws.on("message", msg => {
+    msg = JSON.parse(msg);
     console.log("received msg", msg);
-    const {data: msgData} = msg;
-    const [event, data] = msgData;
-    if(event === 'getUserId'){
-      sendMessage({event: 'getUserId', data });
-    } else {
-      sendMessage({event,data});
+    if (typeof msg === 'object' && msg.event) {
+      console.log('in block');
+      const {event, data} = msg;
+      console.log("data", data);
+      console.log("event", event);
+      if (event === "getUserId") {
+        sendMessage({ event: "getUserId", data });
+      } else {
+        sendMessage({ event, data });
+      }
     }
-  };
+  });
 });
 
-ioKeystroke.on('connection', kSocket => {
-  console.log('keystroke socket connected');
+keysWss.on("connection", kSocket => {
+  console.log("keystroke socket onconnection");
 
-  kSocket.on('disconnect', () => {
-    console.log('keystroke socket disconnected');
-  })
-
-  kSocket.on("connected", () => {
-    console.log('keystroke socket connected');
+  kSocket.on("disconnect", () => {
+    console.log("keystroke socket disconnected");
   });
 
-  kSocket.onevent = msg => {
-    console.log('received keystroke message');
-    console.log(msg);
-  }
+  kSocket.on("connected", () => {
+    console.log("keystroke socket connected");
+  });
 
+  kSocket.on("message", msg => {
+    // kSocket.onevent = msg => {
+    console.log("received keystroke message");
+    console.log(msg);
+  });
 });
 
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
-
 
 /**
  * Create an index.html page at localhost:3000.
@@ -89,13 +115,12 @@ app.post("/command/", (req, res) => {
   }
 });
 
-
 /**
  * Manage proxies messages.
  */
-const handleCommand = async ( {event, data}  ) => {
-console.log("data", data);
-console.log("event", event);
+const handleCommand = async ({ event, data }) => {
+  console.log("data", data);
+  console.log("event", event);
   switch (event) {
     case "open": {
       openSocket();
@@ -106,7 +131,7 @@ console.log("event", event);
       break;
     }
     default:
-      sendMessage({event, data});
+      sendMessage({ event, data });
   }
 };
 
@@ -115,26 +140,38 @@ const openSocket = () => {};
 
 // CLOSE THE SOCKET
 const closeSocket = () => {
-  ioWeb.close();
+  webWss.close();
 };
 
 // Prepare the message format and send it socket clients.
-const sendMessage = ({event, data}) => {
-console.log("data", data);
-console.log("event", event);
-  if(!event) {
+const sendMessage = ({ event, data }) => {
+  console.log("sending data", data);
+  console.log("sending event", event);
+  if (!event) {
     return;
   }
   console.log("currentUserId", currentUserId);
 
-  ioWeb.emit(event, { data: currentUserId });
-  if(event === 'login') {
+  const payload = JSON.stringify({
+    event, 
+    data: currentUserId,
+  });
+
+  // webWss.emit(event, { data: currentUserId });
+  if(wsSender && wsSender.send) {
+    wsSender.send(payload);
+  }
+  // webWss.send(payload);
+  if (event === "login") {
     currentUserId = data || currentUserId;
   }
 };
 
-
 // Start the server.
-http.listen(3000, () => {
-  console.log("Server started");
+webServer.listen(3000, () => {
+  console.log("WebSocket Server started");
+});
+
+keystrokeServer.listen(3001, () => {
+  console.log("Keystroke server started");
 });
