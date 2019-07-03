@@ -19,19 +19,6 @@ wss.on('connection', ws => {
   });
 });
 
-// server.on('connection', socket => {
-//   console.log('on server connection');
-//   socket.on('data', data => {
-//     console.log('received data');
-//     const msg2 = Buffer.from(data).toString('utf8');
-//     console.log('msg2', msg2);
-//   });
-
-//   socket.on('connect', d => {
-//     console.log('connected to server', d);
-//   });
-
-// });
 
 
 server.listen(3000, () => {
