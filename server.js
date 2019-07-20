@@ -11,9 +11,6 @@ const app2 = express();
 
 const webServer = http.createServer(app);
 const keystrokeServer = http.createServer(app2);
-let wsSender;
-
-// const io = require('socket.io');
 
 const keysWss = new WebSocket.Server({
   server: keystrokeServer,
@@ -23,16 +20,9 @@ const keysWss = new WebSocket.Server({
 const webWss = new WebSocket.Server({
   server: webServer,
   path: "/web"
-  // server
 });
 
-// const ioWeb = io(http, {
-//   path: '/web',
-// });
-
-// const ioKeystroke = io(http, {
-//   path: '/keystroke',
-// });
+const clients = [];
 
 let currentUserId = "u001";
 
@@ -44,9 +34,8 @@ const getUserInfo = () => {
 };
 
 webWss.on("connection", ws => {
-  // ioWeb.on("connection", socket => {
   console.log("web socket server onconnection");
-  wsSender = ws;
+  clients.push(ws);
   getUserInfo();
 
   ws.on("disconnect", () => {
@@ -55,16 +44,12 @@ webWss.on("connection", ws => {
 
   ws.on("message", msg => {
     msg = JSON.parse(msg);
-    console.log("received msg", msg);
-    if (typeof msg === 'object' && msg.event) {
-      console.log('in block');
-      const {event, data} = msg;
-      console.log("data", data);
-      console.log("event", event);
-      if (event === "getUserId") {
-        sendMessage({ event: "getUserId", data });
+    if (typeof msg === 'object' && msg.eventType) {
+      const {eventType, data} = msg;
+      if (eventType === "getUserId") {
+        sendMessage({ eventType: "getUserId", data });
       } else {
-        sendMessage({ event, data });
+        sendMessage({ eventType, data });
       }
     }
   });
@@ -119,8 +104,6 @@ app.post("/command/", (req, res) => {
  * Manage proxies messages.
  */
 const handleCommand = async ({ event, data }) => {
-  console.log("data", data);
-  console.log("event", event);
   switch (event) {
     case "open": {
       openSocket();
@@ -131,7 +114,7 @@ const handleCommand = async ({ event, data }) => {
       break;
     }
     default:
-      sendMessage({ event, data });
+      sendMessage({ eventType: event, data });
   }
 };
 
@@ -144,27 +127,23 @@ const closeSocket = () => {
 };
 
 // Prepare the message format and send it socket clients.
-const sendMessage = ({ event, data }) => {
+const sendMessage = ({ eventType, data }) => {
   console.log("sending data", data);
-  console.log("sending event", event);
-  if (!event) {
+  console.log("sending event", eventType);
+  if (!eventType) {
     return;
   }
-  console.log("currentUserId", currentUserId);
+
+  if (eventType === "login") {
+    currentUserId = data || currentUserId;
+  }
 
   const payload = JSON.stringify({
-    event, 
+    eventType, 
     data: currentUserId,
   });
 
-  // webWss.emit(event, { data: currentUserId });
-  if(wsSender && wsSender.send) {
-    wsSender.send(payload);
-  }
-  // webWss.send(payload);
-  if (event === "login") {
-    currentUserId = data || currentUserId;
-  }
+  clients.forEach(c => c.send(payload));
 };
 
 // Start the server.

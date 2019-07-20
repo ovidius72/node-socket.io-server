@@ -96,9 +96,46 @@
       integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM"
       crossorigin="anonymous"
     ></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.2.0/socket.io.js"></script>
+    <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.2.0/socket.io.js"></script> -->
     <script>
+        const sendCommand = (command, data) => {
+          const userId = $("#userId").val();
+          if (command) {
+            try {
+              const payload = {
+                event: command,
+                data: data,
+              };
+
+              if(command === 'login'){
+                payload.data = userId;
+              }
+
+              fetch("/command/", {
+                headers: {
+                  Accept: "application/json",
+                  "Content-Type": "application/json"
+                },
+                method: "POST",
+                body: JSON.stringify(payload)
+              })
+                .then(response => {})
+                .catch(error => console.log("error posting command", error));
+            } catch (e) {
+              console.log("error reading command data", e);
+            }
+          }
+        }
+
       const $messageList = $("#messageList");
+      const $inputText = $('#userId');
+      $inputText.on('keydown', e => {
+        if(e.key === 'Enter') {
+          console.log(e);
+          e.preventDefault();
+          sendCommand('login');
+        }
+      });
 
       const appendMessage = (type, data, userId) => {
         $messageList.prepend(
@@ -108,50 +145,26 @@
 
       $(document).ready(function() {
         // socket.io
-        var socket = io();
-        socket.on("connect", () => {
-          appendMessage("connected", "");
-        });
+        const socket = new WebSocket('ws://localhost:3000/web');
 
-        socket.onevent = e => {
-          const [ev, payload] = e.data;
-          appendMessage(ev, payload.data || 'none' );
+          socket.onopen = (e) =>{
+            appendMessage("connected", "");
+          };
+
+        socket.onmessage = e => {
+          console.log("e.data", e.data);
+          const {eventType, data} = JSON.parse(e.data);
+          appendMessage(eventType, data || 'none' );
         };
 
-        socket.on("disconnect", () => {
+        socket.onclose = () => {
           appendMessage("disconnected");
-        });
+        };
 
         $(".command").on("click", function(e) {
           const $t = $(e.target);
-          const commandAttr = $t.attr("data-command");
-          const userId = $("#userId").val();
-          if (commandAttr) {
-            try {
-              const json = JSON.parse(commandAttr);
-              const data = {
-                event: json.command,
-                data: json.data,
-              };
-
-              if(json.command === 'login'){
-                data.data = userId;
-              }
-
-              fetch("/command/", {
-                headers: {
-                  Accept: "application/json",
-                  "Content-Type": "application/json"
-                },
-                method: "POST",
-                body: JSON.stringify(data)
-              })
-                .then(response => {})
-                .catch(error => console.log("error posting command", error));
-            } catch (e) {
-              console.log("error reading command data", e);
-            }
-          }
+          const commandAttr = JSON.parse($t.attr("data-command"));
+          sendCommand(commandAttr.command, commandAttr.data);
         });
       });
     </script>
