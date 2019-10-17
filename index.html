@@ -53,6 +53,13 @@
           >
           Unlock
           </button>
+          <button
+            type="button"
+            class="btn btn-primary command"
+            data-command='{"command": "versionCheck", "data": 1 }'
+          >
+          Version Check
+          </button>
         </div>
       </div>
       <div class="row">
@@ -154,6 +161,8 @@
         socket.onmessage = e => {
           console.log("e.data", e.data);
           const {eventType, data} = JSON.parse(e.data);
+          console.log("data", data);
+          console.log("eventType", eventType);
           appendMessage(eventType, data || 'none' );
         };
 

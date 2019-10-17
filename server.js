@@ -1,5 +1,6 @@
 const os = require("os");
 const bodyParser = require("body-parser");
+const startProxy = require("./proxy");
 
 const WebSocket = require("ws");
 const http = require("http");
@@ -8,6 +9,9 @@ const express = require("express");
 
 const app = express();
 const app2 = express();
+startProxy(3001, () => {
+  console.log("Proxy started at port 3001");
+});
 
 const webServer = http.createServer(app);
 const keystrokeServer = http.createServer(app2);
@@ -24,7 +28,7 @@ const webWss = new WebSocket.Server({
 
 const clients = [];
 
-let currentUserId = "u001";
+let currentUserId = "partners\\user01";
 
 // Get user info from the os module.
 // Not used.
@@ -44,8 +48,10 @@ webWss.on("connection", ws => {
 
   ws.on("message", msg => {
     msg = JSON.parse(msg);
-    if (typeof msg === 'object' && msg.eventType) {
-      const {eventType, data} = msg;
+    if (typeof msg === "object" && msg.eventType) {
+      const { eventType, data } = msg;
+      console.log("data", data);
+      console.log("eventType", eventType);
       if (eventType === "getUserId") {
         sendMessage({ eventType: "getUserId", data });
       } else {
@@ -128,8 +134,8 @@ const closeSocket = () => {
 
 // Prepare the message format and send it socket clients.
 const sendMessage = ({ eventType, data }) => {
-  console.log("sending data", data);
   console.log("sending event", eventType);
+  console.log("sending data", data);
   if (!eventType) {
     return;
   }
@@ -138,19 +144,28 @@ const sendMessage = ({ eventType, data }) => {
     currentUserId = data || currentUserId;
   }
 
-  const payload = JSON.stringify({
-    eventType, 
-    data: currentUserId,
+  let payload = JSON.stringify({
+    eventType,
+    data: currentUserId
   });
+
+  if(eventType === 'version') {
+    payload = JSON.stringify({
+      eventType,
+      data
+    });
+  }
+  console.log("payload", payload);
 
   clients.forEach(c => c.send(payload));
 };
 
 // Start the server.
 webServer.listen(3000, () => {
-  console.log("WebSocket Server started");
+  console.log("Web WebSocket started on port 3000.");
+  console.log("Socket Control Panel is available at http://localhost:3000");
 });
 
-keystrokeServer.listen(3001, () => {
-  console.log("Keystroke server started");
+keystrokeServer.listen(3003, () => {
+  console.log("Keystroke server started 3003");
 });
