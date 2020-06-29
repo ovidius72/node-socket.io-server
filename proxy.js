@@ -1,6 +1,12 @@
 var http = require("http");
 var url = require("url");
 
+/**
+ * Start the proxy
+ *
+ * @param {number} [port=301]
+ * @param {*} cb
+ */
 const startProxy = (port = 301, cb) => {
   const proxy = http.createServer(function(req, res) {
     const request = url.parse(req.url);

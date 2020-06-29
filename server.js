@@ -28,7 +28,7 @@ const webWss = new WebSocket.Server({
 
 const clients = [];
 
-let currentUserId = "partners\\user01";
+let currentUserId = "partners\\user002";
 
 // Get user info from the os module.
 // Not used.
