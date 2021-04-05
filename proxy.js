@@ -13,6 +13,7 @@ const startProxy = (port = 301, cb) => {
     console.log("[PROXY]: request hostname", request.hostname);
     console.log("[PROXY]: request port", request.port);
     console.log("[PROXY]: request path", request.path);
+
     const options = {
       protocol: request.protocol || 'http',
       host: request.hostname || "http://devpaperpads.piosoft.org",
